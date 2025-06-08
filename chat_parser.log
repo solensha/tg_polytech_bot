@@ -1,0 +1,6 @@
+[2025-05-28 14:18:03,482] [ERROR] Error: 'coroutine' object is not iterable
+[2025-05-28 14:18:03,482] [ERROR] (<class 'TypeError'>, TypeError("'coroutine' object is not iterable"), <traceback object at 0x000001F623E49B00>)
+[2025-05-28 14:18:03,518] [ERROR] Error: 'coroutine' object is not iterable
+[2025-05-28 14:20:28,010] [ERROR] Error: 'coroutine' object is not iterable
+[2025-05-28 14:20:28,010] [ERROR] (<class 'TypeError'>, TypeError("'coroutine' object is not iterable"), <traceback object at 0x000001EC55E47080>)
+[2025-05-28 14:20:28,045] [ERROR] Error: 'coroutine' object is not iterable

@@ -1,0 +1,9 @@
+[submodule "Bot"]
+	path = Bot
+	url = https://github.com/TatyanaStartseva/Bot.git
+[submodule "Links"]
+	path = Links
+	url = https://github.com/TatyanaStartseva/Links.git
+[submodule "Parser"]
+	path = Parser
+	url = https://github.com/TatyanaStartseva/Parser.git
