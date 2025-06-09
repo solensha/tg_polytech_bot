@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import datetime
 import logging
+import inspect
 from db.db import db
 
 load_dotenv()
@@ -40,121 +41,108 @@ async def retry(func_name, *args, **kwargs):
 
 async def insert_many(db, table_name, updates):
     try:
-        if len(updates) == 0:
+        if not updates:
             return
         logger.info(f"Инициализирую запрос на вставку в БД {updates}")
-        conn = db[f"{table_name}"]
-        await conn.insert_many(updates)
+        conn = db[table_name]
+        result = conn.insert_many(updates)
+        if inspect.isawaitable(result):
+            await result
     except Exception as e:
-        raise e
+        raise
 
 
 async def Users(data, pool):
     try:
-        updates = []
-        updates_links = []
-
-        conn = pool["users"]
-        conn_links = pool["links"]
-
-        all_users = set(
-            await conn.distinct(
-                "user_id",
-                {"user_id": {"$in": list(data["accounts"].keys())}},
-            )
+        # Получаем существующих пользователей
+        distinct_res = pool["users"].distinct(
+            "user_id", {"user_id": {"$in": list(data["accounts"].keys())}}
         )
+        if inspect.isawaitable(distinct_res):
+            distinct_res = await distinct_res
+        all_users = set(distinct_res) if isinstance(distinct_res, (list, tuple, set)) else set()
 
-        cursor = await conn_links.find(
+        # Получаем существующие связи user-chat
+        cursor_res = pool["links"].find(
             {"chat_id": {"$in": list(data["chats"])}},
             {"_id": 0, "user_id": 1, "chat_id": 1},
         )
+        if inspect.isawaitable(cursor_res):
+            cursor_res = await cursor_res
+        exists_links = set((doc["user_id"], doc["chat_id"]) for doc in cursor_res)
 
-        exists_links = set((doc["user_id"], doc["chat_id"]) for doc in cursor)
+        updates = []
+        updates_links = []
 
-        for key in data["accounts"]:
-            for key_chat in data["accounts"][key]["chats"]:
-                if (key, key_chat) in exists_links:
+        for user_id, user_data in data["accounts"].items():
+            # Добавляем новые связи
+            for chat_id in user_data["chats"]:
+                if (user_id, chat_id) in exists_links:
                     continue
-                links_update = {
-                    "user_id": key,
-                    "chat_id": key_chat,
-                }
-                updates_links.append(links_update)
+                updates_links.append({"user_id": user_id, "chat_id": chat_id})
 
-            if key in all_users:
+            if user_id in all_users:
                 continue
 
-            accounts_info = data["accounts"][key]["info"]
-
-            if (
-                accounts_info.get("username") is not None
-                and accounts_info.get("first_name") is not None
-            ):
-                username = accounts_info.get("username").lower()
+            info = user_data["info"]
+            if info.get("username") is not None and info.get("first_name") is not None:
+                username = info.get("username").lower()
                 last_online = (
                     datetime.datetime.strptime(
-                        accounts_info.get("last_online"),
-                        "%Y-%m-%d %H:%M:%S",
-                    )
-                    if accounts_info.get("last_online") is not None
-                    else None
+                        info.get("last_online"), "%Y-%m-%d %H:%M:%S"
+                    ) if info.get("last_online") is not None else None
                 )
 
-                user_update = {
-                    "user_id": key,
+                updates.append({
+                    "user_id": user_id,
                     "username": username,
-                    "bio": accounts_info.get("bio"),
-                    "first_name": accounts_info.get("first_name"),
-                    "last_name": accounts_info.get("last_name"),
+                    "bio": info.get("bio"),
+                    "first_name": info.get("first_name"),
+                    "last_name": info.get("last_name"),
                     "last_online": last_online,
-                    "premium": accounts_info.get("premium"),
-                    "phone": accounts_info.get("phone"),
-                    "image": accounts_info.get("image"),
-                }
-
-                updates.append(user_update)
+                    "premium": info.get("premium"),
+                    "phone": info.get("phone"),
+                    "image": info.get("image"),
+                })
 
         await retry(insert_many, pool, "users", updates)
         await retry(insert_many, pool, "links", updates_links)
+
     except Exception as e:
-        logger.error(f"Error: {e}")
-        logger.error(sys.exc_info())
+        logger.error(f"Error in Users: {e}", exc_info=True)
 
 
 async def Chats(data, pool):
     try:
-        updates = []
-        conn = pool["chats"]
-        exists_chats = set(
-            await conn.distinct("chat_id", {"chat_id": {"$in": list(data["chats"].keys())}})
+        # Получаем существующие чаты
+        distinct_res = pool["chats"].distinct(
+            "chat_id", {"chat_id": {"$in": list(data["chats"].keys())}}
         )
+        if inspect.isawaitable(distinct_res):
+            distinct_res = await distinct_res
+        exists_chats = set(distinct_res) if isinstance(distinct_res, (list, tuple, set)) else set()
 
-        for key in data["chats"]:
-            if key in exists_chats:
+        updates = []
+        for chat_id, chat_data in data["chats"].items():
+            if chat_id in exists_chats:
                 continue
-
-            chats_key = data["chats"][key]
             last_online = (
                 datetime.datetime.strptime(
-                    chats_key.get("last_online"), "%Y-%m-%d %H:%M:%S"
-                )
-                if chats_key.get("last_online") is not None
-                else None
+                    chat_data.get("last_online"), "%Y-%m-%d %H:%M:%S"
+                ) if chat_data.get("last_online") is not None else None
             )
-
-            updates.append(
-                {
-                    "chat_id": key,
-                    "parent_link": chats_key.get("parent_link"),
-                    "children_link": chats_key.get("children_link"),
-                    "title": chats_key.get("title"),
-                    "last_online": last_online,
-                }
-            )
+            updates.append({
+                "chat_id": chat_id,
+                "parent_link": chat_data.get("parent_link"),
+                "children_link": chat_data.get("children_link"),
+                "title": chat_data.get("title"),
+                "last_online": last_online,
+            })
 
         await retry(insert_many, pool, "chats", updates)
+
     except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error in Chats: {e}", exc_info=True)
 
 
 async def background_save(data):
@@ -163,5 +151,5 @@ async def background_save(data):
         await Chats(data, pool)
         await Users(data, pool)
     except Exception as e:
-        logger.error(f"Error: {e}")
-        logger.error(sys.exc_info())
+        logger.error(f"Error in background_save: {e}", exc_info=True)
+

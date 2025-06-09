@@ -14,6 +14,7 @@ from db.db import db
 from dotenv import load_dotenv
 from aiogram import Router
 from aiogram.types import FSInputFile
+
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -31,6 +32,7 @@ class DownloadState(StatesGroup):
 class ParseState(StatesGroup):
     waiting_for_tasks_links = State()
 
+
 @router.message(Command(commands=["start"]))
 async def start(message: Message):
     await message.answer(
@@ -40,6 +42,7 @@ async def start(message: Message):
         'Вы можете отправлять как одну ссылку, так и несколько ссылок одновременно. Просто разделите их переносом строки.'
     )
 
+
 @router.message(Command(commands=["parse"]))
 async def tasks_command(message: Message, state: FSMContext):
     await message.answer(
@@ -47,12 +50,14 @@ async def tasks_command(message: Message, state: FSMContext):
     )
     await state.set_state(ParseState.waiting_for_tasks_links)
 
+
 @router.message(Command(commands=["download"]))
 async def download_command(message: Message, state: FSMContext):
     await message.answer(
         "Пожалуйста, отправьте ссылки на чаты, чтобы скачать информацию о пользователях этих чатов.\nПример:\nhttps://t.me/example1 \nhttps://t.me/example2"
     )
     await state.set_state(DownloadState.waiting_for_download_links)
+
 
 @router.message(ParseState.waiting_for_tasks_links)
 async def tasks_links(message: types.Message, state: FSMContext):
@@ -71,7 +76,8 @@ async def tasks_links(message: types.Message, state: FSMContext):
 
             if invalid_links:
                 await message.answer(
-                    'Ссылки должны начинаться с "https://" и не содержать "/" в конце. Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.\n'
+                    'Ссылки должны начинаться с "https://" и не содержать "/" в конце. '  \
+                    'Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.\n'  \
                     + "\n".join(invalid_links)
                 )
             else:
@@ -85,12 +91,16 @@ async def tasks_links(message: types.Message, state: FSMContext):
                         await message.answer(f"Ошибка: {answer.status_code}")
         else:
             await message.answer(
-                'Ссылки должны начинаться с "https://" и не содержать "/" в конце. Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.'
+                'Ссылки должны начинаться с "https://" и не содержать "/" в конце. '  \
+                'Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.'
             )
         await state.clear()
+
     except Exception as e:
         print(f"{e}")
         await message.answer(f"Ошибка: {e}")
+        await state.clear()
+
 
 @router.message()
 async def download_links(message: types.Message):
@@ -179,7 +189,7 @@ async def download_links(message: types.Message):
                     )
                 if invalid_chat_ids:
                     await message.answer(
-                        f'Ссылки должны начинаться с "https://" и не содержать "/" в конце. Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.\n'
+                        f'Ссылки должны начинаться с "https://" и не содержать "/" в конце. Например, ссылка "https://t.me/example1/4544" неправильна, так как содержит "/4544" в конце.\n'  \
                         + "\n".join(invalid_chat_ids_server)
                     )
                 else:
