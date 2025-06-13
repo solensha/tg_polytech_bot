@@ -141,31 +141,37 @@
 ### 2. Контейнерная диаграмма (C2)
 
 ```
-+------------------------------------------------------+
-|                      TelegramParser                  |
-|------------------------------------------------------|
-| - `aiohttp` Web Server (endpoint `/handle_links`)    |
-| - Telegram client (Telethon)                         |
-| - SQLite client (Links table)                        |
-| - MongoDB client (pymongo)                           |
-+---------------------+--------------------------------+
-                      |
-                      |
-                      | Parses chat by link
-                      ▼
-          +-----------------------------+
-          |  parse_chat_by_link()       |
-          |  parse_chat()               |
-          |  serialize_participant()    |
-          +-----------------------------+
-                      |
-                      | Processed data
-                      ▼
-         +------------------------------+
-         |  background_save(data)       |
-         |  - Chats()                   |
-         |  - Users()                   |
-         +------------------------------+
++-----------------------+
+|    TelegramParser     |
+|-----------------------|
+| - Web Server (aiohttp)|
+| - Telethon Client     |
+|-----------------------|
+| parse_chat_by_link()  |
+| parse_chat()          |
+| serialize_participant()|
+| background_save()     |
++-----------------------+
+           |
+           | Данные
+           v
++-----------------------+
+|      Хранилище       |
+|-----------------------|
+| SQLite:              |
+|   - links (url, meta) |
+|-----------------------|
+| MongoDB:             |
+|   - users            |
+|     (user_id, name,  |
+|      join_date, etc) |
+|   - chats            |
+|     (chat_id, title, |
+|      members_count)  |
+|   - links_metadata   |
+|     (url, parse_date,|
+|      chat_ref)       |
++-----------------------+
 
 ```
 3. Диаграмма компонентов (Component Diagram)
