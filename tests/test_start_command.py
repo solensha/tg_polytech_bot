@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock
-from Bot.commands.commands import start
+from commands.commands import start
 
 @pytest.mark.asyncio
 async def test_start_answer_text_contains_greeting():
