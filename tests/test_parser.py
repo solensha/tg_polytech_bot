@@ -95,3 +95,21 @@ async def test_parse_chat_by_link(mock_send_request, mock_requests_get, mock_tel
     mock_parse_chat.assert_awaited_once_with(client, mock_chat, user_data, "some_link")
 
 
+@pytest.mark.asyncio
+@patch("parser.requests.get", side_effect=Exception("network boom"))
+@patch("parser.parse_chat", new_callable=AsyncMock)
+async def test_parse_chat_by_link_requests_raises(mock_parse_chat, mock_get):
+    client = AsyncMock()
+    entity = MagicMock()
+    entity.username = "SomeName"
+    entity.megagroup = False  # чтобы parse_chat точно не вызывался
+    client.get_entity = AsyncMock(return_value=entity)
+
+    user_data = {"chats": {}, "accounts": {}}
+
+    # Передаём строку-ссылку, чтобы parse_chat_by_link реально вызвал get_entity
+    res = await parse_chat_by_link(client, "https://t.me/SomeName", user_data)
+
+    # Функция не падает и не вызывает parse_chat при ошибке внешнего запроса
+    mock_parse_chat.assert_not_awaited()
+    assert res is None or res == 0
